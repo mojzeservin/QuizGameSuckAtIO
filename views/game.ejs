@@ -11,18 +11,18 @@
 
             <div class="form-floating mb-3 col-4 m-0 p-0">
                 <div class="form-control" placeholder="" id="usersList"></div>
-                <label for="messages">Users in room</label>
+                <label for="messages">Users in game</label>
             </div>
         </div>
         
         <div class="row m-0 p-0 mb-3">
             <div class="form-floating col-10 m-0 p-0 pe-3">
-                <input type="text" class="form-control" id="newmsg" placeholder="">
-                <label for="newmsg">New message</label>
+                <input type="number" class="form-control" id="newmsg" placeholder="">
+                <label for="newmsg">Answer</label>
             </div>
             <button class="btn btn-primary col-2" id="sendBtn">Send</button>
         </div>
-        <a href="/" class="btn btn-danger" id="leaveRoomBtn">Leave room...</a>
+        <a href="/" class="btn btn-danger" id="leaveRoomBtn">Leave game...</a>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
