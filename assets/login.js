@@ -23,7 +23,7 @@ loginBtn.addEventListener('click', ()=>{
         room = roomsSelect.value;
     }
 
-    document.location.href = `/chat/${room}/${username}`;
+    document.location.href = `/game/${room}/${username}`;
 
 });
 

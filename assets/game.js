@@ -19,7 +19,7 @@ socket.on('updateRoomUsers', (roomUsers)=>{
 });
 
 socket.on('userConnected', (user)=>{
-    renderMessage('System', user.username + ' connected to the chat...');
+    renderMessage('System', user.username + ' connected to the game...');
 });
 
 socket.on('message', (from, message)=>{
