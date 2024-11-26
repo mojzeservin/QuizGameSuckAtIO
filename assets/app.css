@@ -1,0 +1,47 @@
+header{
+    padding: 35px;
+    text-align: center;
+    font-size: 200%;
+}
+
+footer{
+    text-align: center;
+    padding: 20px;
+    letter-spacing: 3px;
+    font-size: 80%;
+}
+
+
+#messages, #usersList{
+    min-height: 400px !important;
+    overflow-y: scroll;
+}
+
+.msg{
+    padding: 6px;
+    border-radius: 6px;
+    position: relative;
+    margin-bottom: 10px;
+}
+
+.system{
+    background-color: rgba(100,100,100, 0.3);
+}
+
+.outgoing{
+    background-color: rgba(155, 197, 116, 0.3);
+
+}
+
+.incoming{
+    background-color: rgba(91, 104, 163, 0.3);
+}
+
+.timestamp{
+    font-size: 70%;
+    color: gray;
+    position: absolute;
+    right: 6px;
+    margin-top: -13px;
+    font-style: italic;
+}

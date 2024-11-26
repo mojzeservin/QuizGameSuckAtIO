@@ -1,0 +1,27 @@
+<%- include('header') %>
+
+<div class="col-md-6 offset-md-3 col-xl-4 offset-xl-4">
+    <h3>Login to chat</h3>
+    <div class="form-floating mb-3">
+        <input type="text" class="form-control" id="name" placeholder="">
+        <label for="name">Name:</label>
+    </div>
+    <div class="form-floating mb-3">
+        <input type="text" class="form-control" id="room" placeholder="">
+        <label for="room">New room:</label>
+    </div>
+
+    <div class="form-floating mb-3">
+        <select class="form-select" id="rooms" aria-label="">
+            <option value="" selected>Join to an existing room</option>
+    
+        </select>
+        <label for="rooms">Select room:</label>
+        </div>
+    <button class="btn btn-primary mb-3" id="login">Login</button>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="./assets/login.js"></script>
+
+ <%- include('footer') %>
