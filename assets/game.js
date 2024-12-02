@@ -26,19 +26,29 @@ socket.on('message', (from, message)=>{
     renderMessage(from, message);
 });
 
+socket.on('alert', (msg) => {
+    window.location.href = "/";
+    alert(msg? msg : "Error");
+});
+
 function renderMessage(sender, message){
     let newMessage = document.createElement('div');
     newMessage.classList.add('msg');
    
     if (sender.id == socket.id){
         newMessage.classList.add('outgoing');
-    }else{
-        if (sender == 'System'){
+    }
+    else
+    {
+        if (sender == 'System')
+        {
             newMessage.classList.add('system');
             sender = {
                 username: 'System'
             } 
-        }else{
+        }
+        else
+        {
             newMessage.classList.add('incoming');
         }
     }

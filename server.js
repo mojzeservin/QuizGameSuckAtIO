@@ -37,83 +37,38 @@ app.get('/game/:room/:user', (req, res)=>{
     res.render('game.ejs', {user:session.user, room:session.room});
 });
 
-let timeTilNextQuestion = 5;
-let questionIndex = 0;
-
-class Answer
-{
-    constructor (id, answer)
-    {
-      this.id = id;
-      this.answer = answer;
-    }
-}
-
-let answers = {
-
-};
-
 io.on('connection', (socket)=>{
     console.log(socket.id)
 
     socket.on('getRoomList', ()=>{
-        io.emit('updateRoomList', rooms)
+        io.emit('updateRoomList', rooms);
     });
 
     socket.on('joinToChat', ()=>{
+        if (getRoomUsers(session.room).length > 1)
+        {
+            io.to(socket.id).emit('alert', "The game is full!");
+            return;
+        }
+
+        if (getRoomUsers(session.room).find(roomUser => roomUser.username == session.user))
+        {
+            io.to(socket.id).emit('alert', "There is already a user with this name in the room!");
+            return;
+        }
+
         let user = userJoin(socket.id, session.user, session.room);
         socket.join(session.room);
         io.to(session.room).emit('updateRoomUsers', getRoomUsers(session.room));
         io.to(session.room).emit('userConnected', user);
         if (!inRoomsList(session.room)){
             rooms.push(session.room);
-            io.emit('updateRoomList', rooms); 
+            io.emit('updateRoomList', rooms);
         }
 
-        if (getRoomUsers(user.room).length == 2)
+        if (getRoomUsers(session.room).length == 2)
         {
-            pool.query("SELECT * FROM questions ORDER BY rand() LIMIT 10", (err, results) => {
-                if (err)
-                {
-                    io.to(user.room).emit('message', 'System', `The game failed to start!`);
-                    return;
-                }
-
-                io.to(user.room).emit('message', 'System', `The game starts soon!`);
-
-                let timeToStart = 5;
-                let startCountdown = setInterval(() => {
-                    io.to(user.room).emit('message', 'System', `The game starts in ${timeToStart}!`);
-                    timeToStart--;
-    
-                    if (timeToStart == 0)
-                    {
-                        clearInterval(startCountdown);
-                        setTimeout(() => {
-                            io.to(user.room).emit('message', 'System', `The game has started!`);
-                        }, 1000);
-                    }
-                }, 1000);
-
-                let gameQuestionCountdown = setInterval(() => {
-                    let visibleCountdown = setInterval(() => {
-                        timeTilNextQuestion--;
-
-                        if (timeTilNextQuestion == 0)
-                        {
-                            clearInterval(visibleCountdown);
-                        }
-                    }, 1000);
-
-                    io.to(user.room).emit('message', 'System', `${questionIndex + 1}. ${results[questionIndex].question}`);
-                    questionIndex++;
-
-                    if (questionIndex == 10)
-                    {
-                        clearInterval(gameQuestionCountdown);
-                    }
-                }, (timeTilNextQuestion + 1) * 1000);
-            });
+            StartGameCountdown(user.room);
         }
     });
 
@@ -124,7 +79,7 @@ io.on('connection', (socket)=>{
         io.to(user.room).emit('updateRoomUsers', getRoomUsers(user.room));
         if (getRoomUsers(user.room).length == 0){
             roomLeave(user.room)
-            io.emit('updateRoomList', rooms); 
+            io.emit('updateRoomList', rooms);
         }
     });
 
@@ -134,6 +89,52 @@ io.on('connection', (socket)=>{
     });
 });
 
+function StartGameCountdown(userRoom)
+{
+    let timeToStart = 5;
+    let startCountdown = setInterval(() => {
+        io.to(userRoom).emit('message', 'System', `The game starts in ${timeToStart}!`);
+        timeToStart--;
+
+        if (timeToStart == 0)
+        {
+            setTimeout(() => {
+                io.to(userRoom).emit('message', 'System', `The game has started!`);
+                StartGame(userRoom);
+                clearInterval(startCountdown);
+            }, 1000);
+        }
+    }, 1000);
+}
+
+function StartGame(userRoom)
+{
+    let timeTilNextQuestion = 2000;
+    let questionIndex = 0;
+
+    pool.query(`SELECT * FROM questions ORDER BY rand() LIMIT 10`, (err, results) => {
+        if (err)
+        {
+            io.to(userRoom).emit('message', 'System', `Failed to start the game!`);
+        }
+
+        io.to(userRoom).emit('message', 'System', `${questionIndex + 1}. ${results[questionIndex].question}`);
+        questionIndex++;
+        
+        let questionSequence = setInterval(() => {
+            io.to(userRoom).emit('message', 'System', `${questionIndex + 1}. ${results[questionIndex].question}`);
+            questionIndex++;
+
+            if (questionIndex == 10)
+            {
+                setTimeout(() => {
+                    io.to(userRoom).emit('message', 'System', `The game has ended!`);
+                    clearInterval(questionSequence); 
+                }, timeTilNextQuestion);
+            }
+        }, timeTilNextQuestion);
+    });
+}
 
 server.listen(port, ()=>{
     console.log(`Server listening on http://localhost:${port}`);
