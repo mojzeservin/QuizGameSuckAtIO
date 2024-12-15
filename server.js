@@ -1,141 +1,140 @@
 const express = require('express');
-const http = require('http');
-const socketio = require('socket.io');
-const ejs = require('ejs');
-
 const app = express();
+
+const ejs = require('ejs');
 var session = require('express-session');
 const moment = require('moment');
+
+const http = require('http');
 const server = http.createServer(app);
+const socketio = require('socket.io');
 const io = socketio(server);
 
-var mysql = require('mysql');
+let timeBetweenQuestions = 15;
+
 require("dotenv").config();
 
-var pool  = mysql.createPool({
-  connectionLimit : 10,
-  host            : process.env.DBHOST,
-  user            : process.env.DBUSER,
-  password        : process.env.DBPASS,
-  database        : process.env.DBNAME
-});
+const { games, createGame, joinGame, getUsersInGame, getUserFromGame, leaveGame, doesGameAlreadyExists, deleteGame, tryToStartGame, doesGameHaveQuestions, sendQuestionToGame, getGameReference, checkUsersAnswersInGame, getWinner } = require('./utils');
 
-const port = process.env.PORT;
-
-const { users, rooms, userJoin, userLeave, getRoomUsers, getCurrentUser, inRoomsList, roomLeave } = require('./utils');
 
 app.use('/assets', express.static('assets'));
-
 
 app.get('/', (req, res)=>{
     res.render('index.ejs');
 });
 
-app.get('/game/:room/:user', (req, res)=>{
+app.get('/game/:game/:user', (req, res)=>{
+    session.game = req.params.game;
     session.user = req.params.user;
-    session.room = req.params.room;
-    res.render('game.ejs', {user:session.user, room:session.room});
+    res.render('game.ejs', { user: session.user, game: session.game });
 });
 
 io.on('connection', (socket)=>{
-    console.log(socket.id)
+    console.log(socket.id);
 
-    socket.on('getRoomList', ()=>{
-        io.emit('updateRoomList', rooms);
+    io.to(socket.id).emit("updateGamesList", games);
+    
+    let maxPlayerCount = 2
+    socket.on("joinedGame", () => {
+        if (doesGameAlreadyExists(session.game))
+        {
+            if (getUsersInGame(session.game).length > maxPlayerCount)
+            {
+                io.to(socket.id).emit('alert', "The game is full!");
+                return;
+            }
+
+            if (getUsersInGame(session.game).find(gameUser => gameUser.name == session.user))
+            {
+                io.to(socket.id).emit('alert', "There is already a user with this name in the game!");
+                return;
+            }
+
+            let user = {
+                id: socket.id,
+                name: session.user
+            };
+
+            joinGame(user, session.game);
+            tryToStartGame(session.game, maxPlayerCount, () => {
+                let timer = 6
+                let countdown = setInterval(() => {
+                    if (timer == 1)
+                    {
+                        clearInterval(countdown);
+
+                        if (!doesGameHaveQuestions(session.game))
+                        {
+                            io.to(session.game).emit('message', 'System', `The game could not be started! Missing questions!`);
+                            return;
+                        }
+
+                        io.to(session.game).emit('message', 'System', `The game has started!`);
+                        sendQuestionToGame(timeBetweenQuestions, session.game, (questionIndex, question) => {
+                            io.to(session.game).emit('message', 'System', questionIndex + 1 + ". " + question);
+                        }, () => {
+                            checkUsersAnswersInGame(session.game);  // maybe better scoring system
+
+                            let winner = getWinner(session.game);
+                            io.to(session.game).emit('message', 'System', winner.score == 0? "The game has ended! Noone won! Draw!" : " The game has ended! The winner is " + winner.name + "!");
+                        });
+
+                        return;
+                    }
+
+                    timer--;
+                    io.to(session.game).emit('message', 'System', `The game starts in ${timer}!`);
+                }, 1000);
+            });
+        }
+        else
+        {
+            let user = {
+                id: socket.id,
+                name: session.user
+            };
+
+            createGame(user, session.game);
+            io.emit("updateGamesList", games);
+        }
+
+        socket.join(session.game);
+
+        io.to(session.game).emit("updateUsersListInGame", getUsersInGame(session.game));
+        io.to(session.game).emit('userConnected', session.user);
     });
 
-    socket.on('joinToChat', ()=>{
-        if (getRoomUsers(session.room).length > 1)
-        {
-            io.to(socket.id).emit('alert', "The game is full!");
-            return;
-        }
+    socket.on('leaveGame', () => {
+        leaveGame(socket.id, session.game);
 
-        if (getRoomUsers(session.room).find(roomUser => roomUser.username == session.user))
-        {
-            io.to(socket.id).emit('alert', "There is already a user with this name in the room!");
-            return;
-        }
+        io.to(session.game).emit('message', 'System', `${session.user} left the game...`);
+        io.to(session.game).emit('updateUsersListInGame', getUsersInGame(session.game));
 
-        let user = userJoin(socket.id, session.user, session.room);
-        socket.join(session.room);
-        io.to(session.room).emit('updateRoomUsers', getRoomUsers(session.room));
-        io.to(session.room).emit('userConnected', user);
-        if (!inRoomsList(session.room)){
-            rooms.push(session.room);
-            io.emit('updateRoomList', rooms);
-        }
-
-        if (getRoomUsers(session.room).length == 2)
+        if (getUsersInGame(session.game).length === 0)
         {
-            StartGameCountdown(user.room);
+            deleteGame(session.game);
+
+            io.emit('updateGamesList', games);
         }
     });
 
-    socket.on('leaveChat', ()=>{
-        let user = getCurrentUser(socket.id);
-        userLeave(socket.id);
-        io.to(user.room).emit('message', 'System', `${user.username} left the game...`);
-        io.to(user.room).emit('updateRoomUsers', getRoomUsers(user.room));
-        if (getRoomUsers(user.room).length == 0){
-            roomLeave(user.room)
-            io.emit('updateRoomList', rooms);
+    socket.on('sendMsg', (msg) => {
+        let user = {
+            id: socket.id,
+            username: session.user
         }
-    });
 
-    socket.on('sendMsg', (msg)=>{
-        let user = getCurrentUser(socket.id);
-        io.to(user.room).emit('message', user, msg);
+        io.to(session.game).emit('message', user, msg);
+
+        let game = getGameReference(session.game);
+
+        if (game != null && game.currentQuestionIndex != -1)
+        {
+            getUserFromGame(socket.id, session.game).SetAnswer(game.currentQuestionIndex, msg);
+        }
     });
 });
 
-function StartGameCountdown(userRoom)
-{
-    let timeToStart = 5;
-    let startCountdown = setInterval(() => {
-        io.to(userRoom).emit('message', 'System', `The game starts in ${timeToStart}!`);
-        timeToStart--;
-
-        if (timeToStart == 0)
-        {
-            setTimeout(() => {
-                io.to(userRoom).emit('message', 'System', `The game has started!`);
-                StartGame(userRoom);
-                clearInterval(startCountdown);
-            }, 1000);
-        }
-    }, 1000);
-}
-
-function StartGame(userRoom)
-{
-    let timeTilNextQuestion = 2000;
-    let questionIndex = 0;
-
-    pool.query(`SELECT * FROM questions ORDER BY rand() LIMIT 10`, (err, results) => {
-        if (err)
-        {
-            io.to(userRoom).emit('message', 'System', `Failed to start the game!`);
-        }
-
-        io.to(userRoom).emit('message', 'System', `${questionIndex + 1}. ${results[questionIndex].question}`);
-        questionIndex++;
-        
-        let questionSequence = setInterval(() => {
-            io.to(userRoom).emit('message', 'System', `${questionIndex + 1}. ${results[questionIndex].question}`);
-            questionIndex++;
-
-            if (questionIndex == 10)
-            {
-                setTimeout(() => {
-                    io.to(userRoom).emit('message', 'System', `The game has ended!`);
-                    clearInterval(questionSequence); 
-                }, timeTilNextQuestion);
-            }
-        }, timeTilNextQuestion);
-    });
-}
-
-server.listen(port, ()=>{
-    console.log(`Server listening on http://localhost:${port}`);
+server.listen(process.env.PORT, ()=>{
+    console.log(`Server listening on http://localhost:${process.env.PORT}`);
 });

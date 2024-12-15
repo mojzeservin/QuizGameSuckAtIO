@@ -1,41 +1,41 @@
-let nameField = document.querySelector('#name');
-let roomField = document.querySelector('#room');
-let roomsSelect = document.querySelector('#rooms');
-let loginBtn = document.querySelector('#login');
-
 const socket = io();
+
+let nameField = document.querySelector('#name');
+let gameField = document.querySelector('#game');
+let gamesSelect = document.querySelector('#games');
+let loginBtn = document.querySelector('#login');
 
 loginBtn.addEventListener('click', ()=>{
     if (nameField.value == ''){
         alert('Missing username!');
-        return
+        return;
     }
 
-    if (roomField.value == '' && roomsSelect.value == ''){
-        alert('Missing roomname!');
-        return
+    if (gameField.value == '' && gamesSelect.value == ''){
+        alert('Missing gamename!');
+        return;
     }
-
-    let username = nameField.value;
-    let room = roomField.value;
     
-    if (roomsSelect.value != ''){
-        room = roomsSelect.value;
+    let username = nameField.value;
+    let game = gameField.value;
+
+    if (game == '')
+    {
+        game = gamesSelect.value;
+        
     }
 
-    document.location.href = `/game/${room}/${username}`;
+    document.location.href = `/game/${game}/${username}`;
 
 });
 
-socket.emit('getRoomList');
-
-socket.on('updateRoomList', (rooms)=>{
-    roomsSelect.innerHTML = '<option value="" selected>Join to an existing room: </option>';
-    rooms.forEach(room => {
+socket.on("updateGamesList", (games) => {
+    gamesSelect.innerHTML = '';
+    gamesSelect.innerHTML = '<option value="" selected>Join to an existing room: </option>';
+    games.forEach(game => {
         let option = document.createElement('option');
-        option.value = room;
-        option.innerText = room;
-        roomsSelect.appendChild(option);
+        option.value = game.name;
+        option.innerText = game.name;
+        gamesSelect.appendChild(option);
     });
-
 });

@@ -7,16 +7,16 @@
         <label for="name">Name:</label>
     </div>
     <div class="form-floating mb-3">
-        <input type="text" class="form-control" id="room" placeholder="">
-        <label for="room">New room:</label>
+        <input type="text" class="form-control" id="game" placeholder="">
+        <label for="game">New game:</label>
     </div>
 
     <div class="form-floating mb-3">
-        <select class="form-select" id="rooms" aria-label="">
-            <option value="" selected>Join to an existing room</option>
+        <select class="form-select" id="games" aria-label="">
+            <option value="" selected>Join to an existing game</option>
     
         </select>
-        <label for="rooms">Select room:</label>
+        <label for="games">Select game:</label>
         </div>
     <button class="btn btn-primary mb-3" id="login">Login</button>
 </div>
@@ -24,4 +24,4 @@
 <script src="/socket.io/socket.io.js"></script>
 <script src="./assets/login.js"></script>
 
- <%- include('footer') %>
+<%- include('footer') %>

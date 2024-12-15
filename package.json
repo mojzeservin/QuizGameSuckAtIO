@@ -1,9 +1,10 @@
 {
-  "name": "chatapp",
+  "name": "quizgame",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
-    "start": "nodemon server"
+    "start": "node server",
+    "dev": "nodemon server"
   },
   "keywords": [],
   "author": "",
